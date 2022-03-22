@@ -18,6 +18,29 @@ var (
 	timeout = flag.Int("timeout", 60, "Client timeout in seconds")
 )
 
+func printName(c pb.NameServiceClient) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*timeout)*time.Second)
+	defer cancel()
+
+	gnr, err := c.GetName(ctx, &pb.Empty{})
+	if err != nil {
+		log.Fatalf("could not get name: %v", err)
+	}
+	log.Printf("Server name: %s", gnr.GetName())
+}
+
+func sendName(c pb.NameServiceClient) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*timeout)*time.Second)
+	defer cancel()
+
+	name := "Name" + strconv.Itoa(rand.Int())
+	_, err := c.SetName(ctx, &pb.NameRequest{Name: name})
+	if err != nil {
+		log.Fatalf("could not set name: %v", err)
+	}
+	log.Printf("Set name: %s", name)
+}
+
 func main() {
 	flag.Parse()
 
@@ -28,29 +51,12 @@ func main() {
 	defer conn.Close()
 	c := pb.NewNameServiceClient(conn)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*timeout)*time.Second)
-	defer cancel()
-
-	gnr, err := c.GetName(ctx, &pb.Empty{})
-	if err != nil {
-		log.Fatalf("could not get name: %v", err)
-	}
-	log.Printf("Get initial server name: %s", gnr.GetName())
+	printName(c)
 
 	for {
-		name := "New Name " + strconv.Itoa(rand.Int())
-		_, err = c.SetName(ctx, &pb.NameRequest{Name: name})
-		if err != nil {
-			log.Fatalf("could not set name: %v", err)
-		}
-		log.Printf("Set name: %s", name)
-
-		gnr, err = c.GetName(ctx, &pb.Empty{})
-		if err != nil {
-			log.Fatalf("could not get name: %v", err)
-		}
-		log.Printf("Get name: %s", gnr.GetName())
-
-		time.Sleep(3 * time.Second)
+		sendName(c)
+		printName(c)
+		time.Sleep(1 * time.Second)
 	}
+
 }
