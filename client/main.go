@@ -4,6 +4,8 @@ import (
 	"context"
 	"flag"
 	"log"
+	"math/rand"
+	"strconv"
 	"time"
 
 	pb "github.com/idekpas/grpc-task/nameservice"
@@ -12,7 +14,8 @@ import (
 )
 
 var (
-	addr = flag.String("addr", "localhost:9081", "the address to connect to")
+	addr    = flag.String("addr", "localhost:9081", "the address to connect to")
+	timeout = flag.Int("timeout", 60, "Client timeout in seconds")
 )
 
 func main() {
@@ -25,26 +28,29 @@ func main() {
 	defer conn.Close()
 	c := pb.NewNameServiceClient(conn)
 
-	// Contact the server and print out its response.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*timeout)*time.Second)
 	defer cancel()
 
 	gnr, err := c.GetName(ctx, &pb.Empty{})
 	if err != nil {
 		log.Fatalf("could not get name: %v", err)
 	}
-	log.Printf("Get name: %s", gnr.GetName())
+	log.Printf("Get initial server name: %s", gnr.GetName())
 
-	name := "New Name"
-	_, err = c.SetName(ctx, &pb.NameRequest{Name: name})
-	if err != nil {
-		log.Fatalf("could not set name: %v", err)
-	}
-	log.Printf("Set name: %s", name)
+	for {
+		name := "New Name " + strconv.Itoa(rand.Int())
+		_, err = c.SetName(ctx, &pb.NameRequest{Name: name})
+		if err != nil {
+			log.Fatalf("could not set name: %v", err)
+		}
+		log.Printf("Set name: %s", name)
 
-	gnr, err = c.GetName(ctx, &pb.Empty{})
-	if err != nil {
-		log.Fatalf("could not get name: %v", err)
+		gnr, err = c.GetName(ctx, &pb.Empty{})
+		if err != nil {
+			log.Fatalf("could not get name: %v", err)
+		}
+		log.Printf("Get name: %s", gnr.GetName())
+
+		time.Sleep(3 * time.Second)
 	}
-	log.Printf("Get name: %s", gnr.GetName())
 }
