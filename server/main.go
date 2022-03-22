@@ -4,12 +4,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	pb "github.com/idekpas/grpc-task/nameservice"
+	"google.golang.org/grpc"
+	"io"
 	"log"
 	"net"
 	"sync"
-
-	pb "github.com/idekpas/grpc-task/nameservice"
-	"google.golang.org/grpc"
 )
 
 var (
@@ -20,28 +20,54 @@ var (
 type nameServiceServer struct {
 	pb.UnimplementedNameServiceServer
 
-	mu   sync.Mutex
-	name string
+	mu    sync.Mutex
+	queue []string
 }
 
 func NewNameServiceServer() *nameServiceServer {
-	return &nameServiceServer{name: *name}
+	queue := make([]string, 0)
+	queue = append(queue, *name)
+	return &nameServiceServer{queue: queue}
 }
 
 func (s *nameServiceServer) GetName(c context.Context, empty *pb.Empty) (*pb.NameResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return &pb.NameResponse{Name: s.name}, nil
+	name := s.queue[0]
+	s.queue = s.queue[1:]
+	return &pb.NameResponse{Name: name}, nil
 }
 
 func (s *nameServiceServer) SetName(c context.Context, request *pb.NameRequest) (*pb.Empty, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.name = request.Name
-
+	s.queue = append(s.queue, request.Name)
 	return &pb.Empty{}, nil
+}
+
+func (s *nameServiceServer) GetNameStream(empty *pb.Empty, stream pb.NameService_GetNameStreamServer) error {
+	for _, name := range s.queue {
+		if err := stream.Send(&pb.NameResponse{Name: name}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nameServiceServer) SetNameStream(stream pb.NameService_SetNameStreamServer) error {
+	for {
+		r, err := stream.Recv()
+		if err == io.EOF {
+			return stream.SendAndClose(&pb.Empty{})
+		}
+		if err != nil {
+			return err
+		}
+
+		s.queue = append(s.queue, r.Name)
+	}
 }
 
 func main() {
