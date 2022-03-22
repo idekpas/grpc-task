@@ -5,6 +5,8 @@ option go_package = ".;pb";
 service NameService {
   rpc GetName(Empty) returns (NameResponse);
   rpc SetName(NameRequest) returns (Empty);
+  rpc GetNameStream(Empty) returns (stream NameResponse);
+  rpc SetNameStream(stream NameRequest) returns (Empty);
 }
 
 message Empty {

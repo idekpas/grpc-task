@@ -20,6 +20,8 @@ const _ = grpc.SupportPackageIsVersion7
 type NameServiceClient interface {
 	GetName(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*NameResponse, error)
 	SetName(ctx context.Context, in *NameRequest, opts ...grpc.CallOption) (*Empty, error)
+	GetNameStream(ctx context.Context, in *Empty, opts ...grpc.CallOption) (NameService_GetNameStreamClient, error)
+	SetNameStream(ctx context.Context, opts ...grpc.CallOption) (NameService_SetNameStreamClient, error)
 }
 
 type nameServiceClient struct {
@@ -48,12 +50,80 @@ func (c *nameServiceClient) SetName(ctx context.Context, in *NameRequest, opts .
 	return out, nil
 }
 
+func (c *nameServiceClient) GetNameStream(ctx context.Context, in *Empty, opts ...grpc.CallOption) (NameService_GetNameStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &NameService_ServiceDesc.Streams[0], "/NameService/GetNameStream", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &nameServiceGetNameStreamClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type NameService_GetNameStreamClient interface {
+	Recv() (*NameResponse, error)
+	grpc.ClientStream
+}
+
+type nameServiceGetNameStreamClient struct {
+	grpc.ClientStream
+}
+
+func (x *nameServiceGetNameStreamClient) Recv() (*NameResponse, error) {
+	m := new(NameResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *nameServiceClient) SetNameStream(ctx context.Context, opts ...grpc.CallOption) (NameService_SetNameStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &NameService_ServiceDesc.Streams[1], "/NameService/SetNameStream", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &nameServiceSetNameStreamClient{stream}
+	return x, nil
+}
+
+type NameService_SetNameStreamClient interface {
+	Send(*NameRequest) error
+	CloseAndRecv() (*Empty, error)
+	grpc.ClientStream
+}
+
+type nameServiceSetNameStreamClient struct {
+	grpc.ClientStream
+}
+
+func (x *nameServiceSetNameStreamClient) Send(m *NameRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *nameServiceSetNameStreamClient) CloseAndRecv() (*Empty, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(Empty)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // NameServiceServer is the server API for NameService service.
 // All implementations must embed UnimplementedNameServiceServer
 // for forward compatibility
 type NameServiceServer interface {
 	GetName(context.Context, *Empty) (*NameResponse, error)
 	SetName(context.Context, *NameRequest) (*Empty, error)
+	GetNameStream(*Empty, NameService_GetNameStreamServer) error
+	SetNameStream(NameService_SetNameStreamServer) error
 	mustEmbedUnimplementedNameServiceServer()
 }
 
@@ -66,6 +136,12 @@ func (UnimplementedNameServiceServer) GetName(context.Context, *Empty) (*NameRes
 }
 func (UnimplementedNameServiceServer) SetName(context.Context, *NameRequest) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetName not implemented")
+}
+func (UnimplementedNameServiceServer) GetNameStream(*Empty, NameService_GetNameStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetNameStream not implemented")
+}
+func (UnimplementedNameServiceServer) SetNameStream(NameService_SetNameStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method SetNameStream not implemented")
 }
 func (UnimplementedNameServiceServer) mustEmbedUnimplementedNameServiceServer() {}
 
@@ -116,6 +192,53 @@ func _NameService_SetName_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NameService_GetNameStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(NameServiceServer).GetNameStream(m, &nameServiceGetNameStreamServer{stream})
+}
+
+type NameService_GetNameStreamServer interface {
+	Send(*NameResponse) error
+	grpc.ServerStream
+}
+
+type nameServiceGetNameStreamServer struct {
+	grpc.ServerStream
+}
+
+func (x *nameServiceGetNameStreamServer) Send(m *NameResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _NameService_SetNameStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(NameServiceServer).SetNameStream(&nameServiceSetNameStreamServer{stream})
+}
+
+type NameService_SetNameStreamServer interface {
+	SendAndClose(*Empty) error
+	Recv() (*NameRequest, error)
+	grpc.ServerStream
+}
+
+type nameServiceSetNameStreamServer struct {
+	grpc.ServerStream
+}
+
+func (x *nameServiceSetNameStreamServer) SendAndClose(m *Empty) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *nameServiceSetNameStreamServer) Recv() (*NameRequest, error) {
+	m := new(NameRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // NameService_ServiceDesc is the grpc.ServiceDesc for NameService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -132,6 +255,17 @@ var NameService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _NameService_SetName_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "GetNameStream",
+			Handler:       _NameService_GetNameStream_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "SetNameStream",
+			Handler:       _NameService_SetNameStream_Handler,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "service.proto",
 }
