@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	pb "github.com/idekpas/grpc-task/nameservice"
+	pb "github.com/idekpas/grpc-task/pb"
 	"google.golang.org/grpc"
 	"io"
 	"log"
@@ -49,6 +49,7 @@ func (s *nameServiceServer) SetName(c context.Context, request *pb.NameRequest) 
 
 func (s *nameServiceServer) GetNameStream(empty *pb.Empty, stream pb.NameService_GetNameStreamServer) error {
 	for _, name := range s.queue {
+		s.queue = s.queue[1:]
 		if err := stream.Send(&pb.NameResponse{Name: name}); err != nil {
 			return err
 		}

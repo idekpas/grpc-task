@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+option go_package = ".;pb";
+
+service NameService {
+  rpc GetName(Empty) returns (NameResponse);
+  rpc SetName(NameRequest) returns (Empty);
+  rpc GetNameStream(Empty) returns (stream NameResponse);
+  rpc SetNameStream(stream NameRequest) returns (Empty);
+}
+
+message Empty {
+}
+
+message NameResponse {
+  string name = 1;
+}
+
+message NameRequest {
+  string name = 1;
+}
+
+//    Hi, I've got an exercise to do for my client
+//
+//
+//
+//    Create a docker container running a GRPC Server.
+//    GRPC Server will expose 2 API getName() and setname( <name> )
+//    Create a docker container running a GRPC client
+//    The client will call the severs API’s in a loop and print the data on stdout.
+//    After the above is complete add a new function in GRPC Server  getNameStream()
+//    setNameStream(<data>) which will send stream of data rather than  single name
+//    The GRPC client will send stream of data and read the stream of data in separate
+//    threads and print the amount of data sent and received.
+//
+//
+//    Goal is to a demo and show how end to end is working and what problems user ran into while
+//    doing this exercise and how he fixed it starting from docker installation and preparing a docker image.
+//
+//    Asking him to submit the code in github repo. The user can take 2/3 days to do this exercise.
+//
+//
+//
+//    The user can learn about this from here https://grpc.io/
+
+// server
+// client1 client2
