@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	addr    = flag.String("addr", "localhost:9081", "the address to connect to")
+	addr    = flag.String("addr", "server:9081", "the address to connect to")
 	timeout = flag.Int("timeout", 60, "Client timeout in seconds")
 )
 

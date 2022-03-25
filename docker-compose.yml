@@ -2,13 +2,27 @@ version: "3"
 
 services:
   server:
-    build: cmd/server/
-    command: go run app/server/main.go
+    build:
+      dockerfile: Dockerfile-server
+      context: .
+#    command: go run app/server/main.go
     ports:
       - 9081:9081
+    networks:
+      - outside
+      - default
 
   client:
-    build: cmd/client/
-    command: go run app/client/main.go
+    build:
+      dockerfile: Dockerfile-client
+      context: .
+#    command: go run app/client/main.go
     depends_on:
       - server
+    networks:
+      - outside
+      - default
+
+networks:
+  outside:
+    external: true
