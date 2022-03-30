@@ -3,6 +3,7 @@ module github.com/idekpas/grpc-task
 go 1.17
 
 require (
+	github.com/google/uuid v1.3.0
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.28.0
 )

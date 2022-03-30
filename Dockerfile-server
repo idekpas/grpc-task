@@ -9,6 +9,7 @@ ADD go.sum /app/server
 
 WORKDIR /app/server/cmd
 
+RUN go get github.com/idekpas/grpc-task/cmd/server/messaging
 RUN go build -o server
 
 CMD ["./server"]
