@@ -1,15 +1,7 @@
 FROM golang:1.18
+WORKDIR /app
 
-RUN mkdir -p /app/server
-
-ADD cmd/server /app/server/cmd
-ADD pb /app/server/pb
-ADD go.mod /app/server
-ADD go.sum /app/server
-
-WORKDIR /app/server/cmd
-
-RUN go get github.com/idekpas/grpc-task/cmd/server/messaging
-RUN go build -o server
+COPY . ./
+RUN go build -o server ./cmd/server
 
 CMD ["./server"]
