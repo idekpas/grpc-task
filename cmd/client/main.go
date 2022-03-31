@@ -24,11 +24,18 @@ var (
 
 func getContext() (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*timeout)*time.Second)
-	id, err := uuid.NewRandom()
+	topicID, err := uuid.NewRandom()
 	if err != nil {
 		return ctx, cancel
 	}
-	ctx = metadata.AppendToOutgoingContext(ctx, "ID", id.String())
+
+	subID, err := uuid.NewRandom()
+	if err != nil {
+		return ctx, cancel
+	}
+
+	ctx = metadata.AppendToOutgoingContext(ctx, "topicID", topicID.String())
+	ctx = metadata.AppendToOutgoingContext(ctx, "subID", subID.String())
 	return ctx, cancel
 }
 
@@ -117,7 +124,7 @@ func main() {
 	}()
 	go func() {
 		defer wg.Done()
-		runSendNames(c, 30, ctx)
+		runSendNames(c, 15, ctx)
 	}()
 	wg.Wait()
 }

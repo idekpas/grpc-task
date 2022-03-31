@@ -21,9 +21,9 @@ var (
 )
 
 type Messager interface {
-	Subscribe(id string) chan string
-	Publish(ch chan string, names ...string)
-	Pull(ch chan string) string
+	Subscribe(topicID string, subID string)
+	Publish(topicID string, name ...string)
+	Pull(topicID string) []string
 }
 
 type nameServiceServer struct {
@@ -38,23 +38,34 @@ func NewNameServiceServer(msg Messager) *nameServiceServer {
 	return &nameServiceServer{msg: msg}
 }
 
-func getID(ctx context.Context) string {
+func getIDs(ctx context.Context) (string, string) {
+	var topicID string
+	var subID string
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		log.Fatalf("No request id received")
-		return uuid.Nil.String()
+		log.Fatalf("No request metadata received")
+		return uuid.Nil.String(), uuid.Nil.String()
 	}
 
-	if v := md.Get("ID"); v != nil {
+	if v := md.Get("topicID"); v != nil {
 		id, err := uuid.Parse(v[0])
 		if err != nil {
-			log.Println("id is null")
-			return uuid.Nil.String()
+			log.Println("topicID is null")
+			topicID = uuid.Nil.String()
 		}
-		return id.String()
+		topicID = id.String()
 	}
-	log.Println("no id")
-	return uuid.Nil.String()
+
+	if v := md.Get("subID"); v != nil {
+		id, err := uuid.Parse(v[0])
+		if err != nil {
+			log.Println("subID is null")
+			subID = uuid.Nil.String()
+		}
+		subID = id.String()
+	}
+
+	return topicID, subID
 }
 
 func (s *nameServiceServer) GetName(_ context.Context, _ *pb.Empty) (*pb.NameResponse, error) {
@@ -74,8 +85,11 @@ func (s *nameServiceServer) SetName(_ context.Context, req *pb.NameRequest) (*pb
 
 func (s *nameServiceServer) GetNameStream(_ *pb.Empty, stream pb.NameService_GetNameStreamServer) error {
 	ctx := stream.Context()
-	dataCh := s.msg.Subscribe(getID(ctx))
-	for name := range dataCh {
+	topicID, subID := getIDs(ctx)
+	s.msg.Subscribe(topicID, subID)
+	names := s.msg.Pull(topicID)
+
+	for _, name := range names {
 		if err := stream.Send(&pb.NameResponse{Name: name}); err != nil {
 			return err
 		}
@@ -91,7 +105,9 @@ func (s *nameServiceServer) GetNameStream(_ *pb.Empty, stream pb.NameService_Get
 
 func (s *nameServiceServer) SetNameStream(stream pb.NameService_SetNameStreamServer) error {
 	ctx := stream.Context()
-	dataCh := s.msg.Subscribe(getID(ctx))
+	topicID, subID := getIDs(ctx)
+	s.msg.Subscribe(topicID, subID)
+
 	for {
 		r, err := stream.Recv()
 		if err == io.EOF {
@@ -101,7 +117,7 @@ func (s *nameServiceServer) SetNameStream(stream pb.NameService_SetNameStreamSer
 			return err
 		}
 
-		s.msg.Publish(dataCh, r.Name)
+		s.msg.Publish(topicID, r.Name)
 	}
 }
 
