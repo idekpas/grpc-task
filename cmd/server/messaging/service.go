@@ -1,7 +1,6 @@
 package messaging
 
 import (
-	"log"
 	"sync"
 )
 
@@ -39,8 +38,6 @@ func (s Service) Subscribe(topicID string, subID string) {
 }
 
 func (s Service) Publish(topicID string, names ...string) {
-	defer log.Printf("publishing complete")
-
 	t, ok := s.topics[topicID]
 	if !ok {
 		return
@@ -60,27 +57,11 @@ func (s Service) Publish(topicID string, names ...string) {
 	wg.Wait()
 }
 
-func (s Service) Pull(topicID string) []string {
-	defer log.Printf("pulling complete")
-
+func (s Service) Pull(topicID string, subID string) <-chan string {
+	out := make(chan string)
 	t, ok := s.topics[topicID]
 	if !ok {
-		return make([]string, 0)
+		return out
 	}
-
-	names := make([]string, 0)
-
-	var wg = &sync.WaitGroup{}
-	for _, c := range t.subs {
-		wg.Add(1)
-		go func(ch <-chan string) {
-			defer wg.Done()
-			for v := range ch {
-				names = append(names, v)
-				log.Printf("names: %v\n", names)
-			}
-		}(c)
-	}
-	wg.Wait()
-	return names
+	return t.subs[subID]
 }

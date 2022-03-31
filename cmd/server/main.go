@@ -23,7 +23,7 @@ var (
 type Messager interface {
 	Subscribe(topicID string, subID string)
 	Publish(topicID string, name ...string)
-	Pull(topicID string) []string
+	Pull(topicID string, subID string) <-chan string
 }
 
 type nameServiceServer struct {
@@ -87,9 +87,8 @@ func (s *nameServiceServer) GetNameStream(_ *pb.Empty, stream pb.NameService_Get
 	ctx := stream.Context()
 	topicID, subID := getIDs(ctx)
 	s.msg.Subscribe(topicID, subID)
-	names := s.msg.Pull(topicID)
 
-	for _, name := range names {
+	for name := range s.msg.Pull(topicID, subID) {
 		if err := stream.Send(&pb.NameResponse{Name: name}); err != nil {
 			return err
 		}
