@@ -1,14 +1,7 @@
 FROM golang:1.18
+WORKDIR /app
 
-RUN mkdir -p /app/client
-
-ADD cmd/client /app/client/cmd
-ADD pb /app/client/pb
-ADD go.mod /app/client
-ADD go.sum /app/client
-
-WORKDIR /app/client/cmd
-
-RUN go build -o client
+COPY . ./
+RUN go build -o client ./cmd/client
 
 CMD ["./client"]

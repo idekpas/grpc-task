@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"google.golang.org/grpc/metadata"
 	"io"
 	"log"
 	"math/rand"
@@ -23,13 +24,11 @@ var (
 
 func getContext() (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*timeout)*time.Second)
-	type ctxKey string
-	k := ctxKey("ID")
-	uuid, err := uuid.NewRandom()
+	id, err := uuid.NewRandom()
 	if err != nil {
 		return ctx, cancel
 	}
-	ctx = context.WithValue(ctx, k, uuid)
+	ctx = metadata.AppendToOutgoingContext(ctx, "ID", id.String())
 	return ctx, cancel
 }
 
@@ -97,6 +96,7 @@ func main() {
 	flag.Parse()
 	ctx, cancel := getContext()
 	defer cancel()
+	defer log.Println("client quits now")
 
 	conn, err := grpc.Dial(*addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -105,9 +105,9 @@ func main() {
 	defer conn.Close()
 	c := pb.NewNameServiceClient(conn)
 
-	//sendName(c)
-	//sendName(c)
-	//printName(c)
+	sendName(c, ctx)
+	sendName(c, ctx)
+	printName(c, ctx)
 
 	var wg = &sync.WaitGroup{}
 	wg.Add(2)
@@ -117,7 +117,7 @@ func main() {
 	}()
 	go func() {
 		defer wg.Done()
-		runSendNames(c, 90, ctx)
+		runSendNames(c, 30, ctx)
 	}()
 	wg.Wait()
 }

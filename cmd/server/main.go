@@ -5,9 +5,11 @@ import (
 	"flag"
 	"fmt"
 	"github.com/idekpas/grpc-task/cmd/server/messaging"
+	"google.golang.org/grpc/metadata"
 	"io"
 	"log"
 	"net"
+	"sync"
 
 	"github.com/google/uuid"
 	pb "github.com/idekpas/grpc-task/pb"
@@ -16,7 +18,6 @@ import (
 
 var (
 	port = flag.Int("port", 9081, "The server port")
-	name = flag.String("name", "Default", "Default name returned by server")
 )
 
 type Messager interface {
@@ -28,7 +29,9 @@ type Messager interface {
 type nameServiceServer struct {
 	pb.UnimplementedNameServiceServer
 
-	msg Messager
+	msg  Messager
+	mu   sync.Mutex
+	name string
 }
 
 func NewNameServiceServer(msg Messager) *nameServiceServer {
@@ -36,27 +39,36 @@ func NewNameServiceServer(msg Messager) *nameServiceServer {
 }
 
 func getID(ctx context.Context) string {
-	type ctxKey string
-	k := ctxKey("ID")
-	if v := ctx.Value(k); v != nil {
-		u, err := uuid.Parse(v.(string))
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		log.Fatalf("No request id received")
+		return uuid.Nil.String()
+	}
+
+	if v := md.Get("ID"); v != nil {
+		id, err := uuid.Parse(v[0])
 		if err != nil {
+			log.Println("id is null")
 			return uuid.Nil.String()
 		}
-		return u.String()
+		return id.String()
 	}
+	log.Println("no id")
 	return uuid.Nil.String()
 }
 
-func (s *nameServiceServer) GetName(ctx context.Context, _ *pb.Empty) (*pb.NameResponse, error) {
-	dataCh := s.msg.Subscribe(getID(ctx))
-	name := s.msg.Pull(dataCh)
-	return &pb.NameResponse{Name: name}, nil
+func (s *nameServiceServer) GetName(_ context.Context, _ *pb.Empty) (*pb.NameResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return &pb.NameResponse{Name: s.name}, nil
 }
 
-func (s *nameServiceServer) SetName(ctx context.Context, req *pb.NameRequest) (*pb.Empty, error) {
-	dataCh := s.msg.Subscribe(getID(ctx))
-	s.msg.Publish(dataCh, req.Name)
+func (s *nameServiceServer) SetName(_ context.Context, req *pb.NameRequest) (*pb.Empty, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.name = req.Name
 	return &pb.Empty{}, nil
 }
 
